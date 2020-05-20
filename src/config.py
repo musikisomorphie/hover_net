@@ -89,17 +89,18 @@ class Config(object):
         self.save_dir = '%s/%s' % (self.log_path, self.model_name) # log file destination
 
         #### Info for running inference
-        self.inf_auto_find_chkpt = True 
+        self.inf_auto_find_chkpt = False
         # path to checkpoints will be used for inference, replace accordingly
-        self.inf_model_path  = self.save_dir + '/model-19640.index'
+        # self.inf_model_path  = self.save_dir + '/model-19640.index'
+        self.inf_model_path  = '../ckpt/hover_seg_class_CoNSeP.npz'
 
         # output will have channel ordering as [Nuclei Type][Nuclei Pixels][Additional]
         # where [Nuclei Type] will be used for getting the type of each instance
         # while [Nuclei Pixels][Additional] will be used for extracting instances
 
         self.inf_imgs_ext = '.png'
-        self.inf_data_dir = '../../../data/CoNSeP/test/Images/'
-        self.inf_output_dir = 'output/%s/%s/' % (exp_id, model_id)
+        self.inf_data_dir = '../data/CoNSeP/Test/Images/'
+        self.inf_output_dir = '../output/%s/%s/' % (exp_id, model_id)
 
         # for inference during evalutaion mode i.e run by infer.py
         self.eval_inf_input_tensor_names = ['images']
