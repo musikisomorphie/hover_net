@@ -59,12 +59,16 @@ for filename in file_list:
     pred = sio.loadmat('%s/%s.mat' % (pred_dir, basename))
     pred = np.squeeze(pred['result'])
 
+    with_type = False
     if hasattr(cfg, 'type_classification') and cfg.type_classification:
+        with_type = True
         pred_inst = pred[...,cfg.nr_types:]
         pred_type = pred[...,:cfg.nr_types]
 
         pred_inst = np.squeeze(pred_inst)
         pred_type = np.argmax(pred_type, axis=-1)
+        print('with type_classification {}'.format(cfg.nr_types))
+        print(pred_type.min(), pred_type.max(), pred_inst.shape, pred_inst.min(), pred_inst.max())
 
         if cfg.model_type == 'micronet':
             # dilate prediction of all type to match it with
@@ -78,6 +82,7 @@ for filename in file_list:
                 type_map = cv2.dilate(type_map, kernel, iterations=1)
                 canvas[type_map > 0] = type_id
     else:
+        print('without type_classification')
         pred_inst = pred
 
     if cfg.model_type == 'np_hv':
@@ -91,10 +96,20 @@ for filename in file_list:
     else:
         pred_inst = postproc.other.process(pred_inst, cfg.model_type)
 
+    # aqua, red, blue, green, orange, navy blue, yellow, medium gray
+    clr_list = [[0, 128, 128], [255, 0, 0], [0, 0, 255], \
+                [0, 255, 0], [255, 165, 0], [0, 0, 128], \
+                [255, 255, 0], [128, 128, 128]]
+    clr_list = clr_list[:cfg.nr_types - 1]
+
     # ! will be extremely slow on WSI/TMA so it's advisable to comment this out
     # * remap once so that further processing faster (metrics calculation, etc.)
     pred_inst = remap_label(pred_inst, by_size=True)
-    overlaid_output = visualize_instances(pred_inst, img)
+    if with_type:
+        overlaid_output = visualize_instances(pred_inst, pred_type, canvas=img, color=clr_list)
+    else:
+        overlaid_output = visualize_instances(pred_inst, canvas=img)
+
     overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
     cv2.imwrite('%s/%s.png' % (proc_dir, basename), overlaid_output)
 
@@ -117,15 +132,16 @@ for filename in file_list:
             pred_inst_type[idx] = inst_type
         pred_inst_centroid = get_inst_centroid(pred_inst)
 
-        sio.savemat('%s/%s.mat' % (proc_dir, basename), 
-                    {'inst_map'  :     pred_inst,
-                        'type_map'  :     pred_type,
-                        'inst_type' :     pred_inst_type[:, None], 
-                        'inst_centroid' : pred_inst_centroid,
-                    })
-    else:
-        sio.savemat('%s/%s.mat' % (proc_dir, basename), 
-                    {'inst_map'  : pred_inst})
+    #     sio.savemat('%s/%s.mat' % (proc_dir, basename), 
+    #                 {'inst_map'  :     pred_inst,
+    #                     'type_map'  :     pred_type,
+    #                     'inst_type' :     pred_inst_type[:, None], 
+    #                     'inst_centroid' : pred_inst_centroid,
+    #                 })
+    # else:
+    #     sio.savemat('%s/%s.mat' % (proc_dir, basename), 
+    #                 {'inst_map'  : pred_inst})
 
+    # break
     ##
-    print('FINISH')
+print('FINISH')

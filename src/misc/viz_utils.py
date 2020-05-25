@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 from .utils import bounding_box
+from collections import Counter
 
 ####
 def random_colors(N, bright=True):
@@ -23,25 +24,35 @@ def random_colors(N, bright=True):
     return colors
 
 ####
-def visualize_instances(mask, canvas=None, color=None):
+def visualize_instances(mask, mask_type=None, canvas=None, color=None):
     """
     Args:
         mask: array of NW
     Return:
         Image with the instance overlaid
     """
+    # if mask_type is not None:
+    #     tmp = mask_type[mask==1]
+    #     print(tmp.max(), tmp.min(), len(tmp))
 
     canvas = np.full(mask.shape + (3,), 200, dtype=np.uint8) \
                 if canvas is None else np.copy(canvas)
 
     insts_list = list(np.unique(mask))
     insts_list.remove(0) # remove background
-
+    # print(len(insts_list))
     inst_colors = random_colors(len(insts_list))
     inst_colors = np.array(inst_colors) * 255
 
     for idx, inst_id in enumerate(insts_list):
-        inst_color = color[idx] if color is not None else inst_colors[idx]
+        if mask_type is not None:
+            assert color is not None, 'color can not be None when mask_type is given.'
+            clr_idx = mask_type[mask == inst_id]
+            cnts_clr = np.bincount(clr_idx)
+            # print(idx, inst_id, clr_idx.min(), clr_idx.max(), clr_idx.shape)
+            inst_color = color[np.argmax(cnts_clr) - 1]
+        else:
+            inst_color = color[idx] if color is not None else inst_colors[idx]
         inst_map = np.array(mask == inst_id, np.uint8)
         y1, y2, x1, x2  = bounding_box(inst_map)
         y1 = y1 - 2 if y1 - 2 >= 0 else y1 
