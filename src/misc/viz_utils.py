@@ -24,33 +24,35 @@ def random_colors(N, bright=True):
     return colors
 
 ####
-def visualize_instances(mask, mask_type=None, canvas=None, color=None):
+def visualize_instances(mask, mask_type=None, canvas=None, color=None, gt=False):
     """
     Args:
         mask: array of NW
     Return:
         Image with the instance overlaid
     """
-    # if mask_type is not None:
-    #     tmp = mask_type[mask==1]
-    #     print(tmp.max(), tmp.min(), len(tmp))
-
     canvas = np.full(mask.shape + (3,), 200, dtype=np.uint8) \
                 if canvas is None else np.copy(canvas)
 
     insts_list = list(np.unique(mask))
     insts_list.remove(0) # remove background
-    # print(len(insts_list))
     inst_colors = random_colors(len(insts_list))
     inst_colors = np.array(inst_colors) * 255
 
+    inst_stat = [0] * len(color)
     for idx, inst_id in enumerate(insts_list):
         if mask_type is not None:
             assert color is not None, 'color can not be None when mask_type is given.'
             clr_idx = mask_type[mask == inst_id]
-            cnts_clr = np.bincount(clr_idx)
-            # print(idx, inst_id, clr_idx.min(), clr_idx.max(), clr_idx.shape)
-            inst_color = color[np.argmax(cnts_clr) - 1]
+            # if compute the predicted nuclei color, 
+            #    then compute the bins of different colors and use the maximum one
+            # else compute the groundtruth nuclei color
+            #    which is identical for the entire nuclei thus take clr_idx[0]
+            clr_nu = np.argmax(np.bincount(clr_idx)) - 1 if not gt \
+                     else int(clr_idx[0])
+            clr_nu -= 1
+            inst_color = color[clr_nu]
+            inst_stat[clr_nu] += 1
         else:
             inst_color = color[idx] if color is not None else inst_colors[idx]
         inst_map = np.array(mask == inst_id, np.uint8)
@@ -59,12 +61,12 @@ def visualize_instances(mask, mask_type=None, canvas=None, color=None):
         x1 = x1 - 2 if x1 - 2 >= 0 else x1 
         x2 = x2 + 2 if x2 + 2 <= mask.shape[1] - 1 else x2 
         y2 = y2 + 2 if y2 + 2 <= mask.shape[0] - 1 else y2 
-        inst_map_crop = inst_map[y1:y2, x1:x2]
+        inst_map_crop = inst_map[y1:y2, x1:x2] if not gt else cv2.UMat(inst_map[y1:y2, x1:x2])
         inst_canvas_crop = canvas[y1:y2, x1:x2]
         contours = cv2.findContours(inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(inst_canvas_crop, contours[1], -1, inst_color, 2)
         canvas[y1:y2, x1:x2] = inst_canvas_crop        
-    return canvas
+    return canvas, inst_stat
 
 ####
 def gen_figure(imgs_list, titles, fig_inch, shape=None,
